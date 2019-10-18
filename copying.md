@@ -8,10 +8,9 @@ _the libtwitch-rs authors_ are:
 
 | Full name                   | aliases                     | E-Mail                                            |
 |-----------------------------|-----------------------------|---------------------------------------------------|
+| Matt Shanker                | hatmatter                   | hatmatteroffact à gmail dawt com                  |
 | Simon San                   | simonsan                    | simon à systemli dawt org                         |
-|-----------------------------|-----------------------------|---------------------------------------------------|
-| Henry Wang                  | lavisheng                   | hen.wang@mail.utoronto.ca
-|-----------------------------|-----------------------------|---------------------------------------------------|
+| Henry Wang                  | lavisheng                   | hen.wang à mail dawt utoronto dawt ca             |
 | XXX                         | XXX                         | XXX à XXX dawt XXX                                |
 
 

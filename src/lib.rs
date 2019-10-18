@@ -15,7 +15,7 @@
 // (Modifications|Other (data|code)|Everything else) Copyright 2019 the libtwitch-rs authors.
 //  See copying.md for further legal info.
 
-//! # Twitch API
+//! # libtwitch-rs
 //!
 //! Rust library for interacting with the Twitch API:
 //! https://dev.twitch.tv/docs/
@@ -23,11 +23,11 @@
 //! # Examples
 //!
 //! ```
-//! extern crate twitch_api;
+//! extern crate libtwitch_rs;
 //!
-//! use twitch_api::games;
+//! use libtwitch_rs::games;
 //!
-//! let c = twitch_api::new("<clientid>".to_owned());
+//! let c = libtwitch_rs::new("<clientid>".to_owned());
 //! // Print the name of the top 20 games
 //! if let Ok(games) = games::TopGames::get(&c) {
 //!     for entry in games.take(20) {
@@ -68,6 +68,7 @@ use hyper::Client;
 
 use serde::de::Deserialize;
 use serde::Serialize;
+use std::fs;
 use std::io::Write;
 use std::io::{stderr, Read};
 use std::env;
@@ -110,6 +111,43 @@ impl Credentials{
 }
 
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Credentials {
+    pub client_id: String,
+    // pub channel_id: String,
+    pub token: String,
+}
+
+impl Credentials {
+    pub fn new(clid: String) -> Credentials {
+        Credentials {
+            client_id: clid.clone(),
+            //channel_id: None,
+            token: "".to_string(),
+        }
+    }
+
+    pub fn set_from_file(file: String) -> Credentials {
+        let file_content = match fs::read_to_string(file) {
+            Ok(s) => s,
+            Err(e) => panic!("There was a problem reading the file: {:?}", e),
+        };
+        match toml::from_str::<Credentials>(&file_content) {
+            Ok(cred) => Credentials {
+                client_id: cred.client_id,
+                //channel_id: cred.channel_id,
+                token: cred.token,
+            },
+            Err(e) => panic!("There was a problem parsing the toml file: {:?}", e),
+        }
+    }
+
+    pub fn write_to_file(&self, file: String) {
+        let content = toml::to_string(self).unwrap();
+        fs::write(file, content).expect("Error writing toml file");
+    }
+}
+
 #[derive(Debug)]
 pub struct TwitchClient {
     client: Client,
@@ -143,24 +181,24 @@ impl TwitchClient {
             SubLevel::Json,
             vec![(Attr::Charset, Value::Utf8)],
         )));
-        if let Some(ref token) = self.cred.token {
-        if let Some(ref token) = self.token {
-            headers.set(Authorization(format!("OAuth {}", token)));
-        }
+
+        headers.set(Authorization(format!("OAuth {}", self.cred.token)));
 
         build(&url).headers(headers)
     }
 
     pub fn set_oauth_token(&mut self, token: &str) {
-        self.cred.token = Some(String::from(token));
+        self.cred.token = String::from(token);
     }
 
     pub fn get<T: Deserialize>(&self, path: &str) -> TwitchResult<T> {
-        let mut r = r#try!(self.build_request(path, |url| self.client.get(url)).send());
+        let mut r = self
+            .build_request(path, |url| self.client.get(url))
+            .send()?;
         let mut s = String::new();
-        let _ = r#try!(r.read_to_string(&mut s));
+        let _ = r.read_to_string(&mut s)?;
         if s.len() == 0 {
-            return Err(ApiError::empty_response());
+            Err(ApiError::empty_response())
         } else {
             match serde_json::from_str(&s) {
                 Ok(x) => Ok(x),
@@ -181,14 +219,14 @@ impl TwitchClient {
         T: Serialize,
         R: Deserialize,
     {
-        let mut r = r#try!(self
+        let mut r = self
             .build_request(path, |url| self.client.post(url))
-            .body(&r#try!(serde_json::to_string(data)))
-            .send());
+            .body(&serde_json::to_string(data)?)
+            .send()?;
         let mut s = String::new();
-        let _ = r#try!(r.read_to_string(&mut s));
+        let _ = r.read_to_string(&mut s)?;
         if s.len() == 0 {
-            return Err(ApiError::empty_response());
+            Err(ApiError::empty_response())
         } else {
             match serde_json::from_str(&s) {
                 Ok(x) => Ok(x),
@@ -209,14 +247,14 @@ impl TwitchClient {
         T: Serialize,
         R: Deserialize,
     {
-        let mut r = r#try!(self
+        let mut r = self
             .build_request(path, |url| self.client.put(url))
-            .body(&r#try!(serde_json::to_string(data)))
-            .send());
+            .body(&serde_json::to_string(data)?)
+            .send()?;
         let mut s = String::new();
-        let _ = r#try!(r.read_to_string(&mut s));
+        let _ = r.read_to_string(&mut s)?;
         if s.len() == 0 {
-            return Err(ApiError::empty_response());
+            Err(ApiError::empty_response())
         } else {
             match serde_json::from_str(&s) {
                 Ok(x) => Ok(x),
@@ -233,13 +271,13 @@ impl TwitchClient {
     }
 
     pub fn delete<T: Deserialize>(&self, path: &str) -> TwitchResult<T> {
-        let mut r = r#try!(self
+        let mut r = self
             .build_request(path, |url| self.client.delete(url))
-            .send());
+            .send()?;
         let mut s = String::new();
-        let _ = r#try!(r.read_to_string(&mut s));
+        let _ = r.read_to_string(&mut s)?;
         if s.len() == 0 {
-            return Err(ApiError::empty_response());
+            Err(ApiError::empty_response())
         } else {
             match serde_json::from_str(&s) {
                 Ok(x) => Ok(x),
@@ -338,6 +376,8 @@ pub mod auth {
 }
 
 #[cfg(test)]
+#[macro_use]
+extern crate pretty_assertions;
 mod tests {
     pub const CLIENTID: &'static str = "";
     pub const TOKEN: &'static str = "";
